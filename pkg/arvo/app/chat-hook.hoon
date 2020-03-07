@@ -1,5 +1,3 @@
-
-
 ::  chat-hook:
 ::  mirror chat data from foreign to local based on read permissions
 ::  allow sending chat messages to foreign paths based on write perms
@@ -43,7 +41,7 @@
 =|  state-1
 =*  state  -
 ::
-%+  verb  &
+%+  verb  |
 %-  agent:dbug
 ^-  agent:gall
 =<
@@ -258,7 +256,6 @@
           %chat-action       (poke-chat-action:cc !<(chat-action vase))
           %noun
         ?:  =(%store-load q.vase)
-          ~&  loaded+loaded-cards.state
           [loaded-cards.state state(loaded-cards ~)]
         [~ state]
       ::
@@ -613,7 +610,6 @@
 ++  chat-poke
   |=  act=chat-action
   ^-  card
-  ~&  act
   [%pass / %agent [our.bol %chat-store] %poke %chat-action !>(act)]
 ::
 ++  chat-view-poke
