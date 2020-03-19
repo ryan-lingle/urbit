@@ -4,7 +4,7 @@ import { SidebarSwitcher } from './icons/icon-sidebar-switch';
 import { Comments } from './comments';
 import { NoteNavigation } from './note-navigation';
 import moment from 'moment';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown from 'react-markdown/with-html';
 import { cite } from '../../lib/util';
 
 export class Note extends Component {
@@ -213,7 +213,7 @@ export class Note extends Component {
             </div>
             <div className="md"
             style={{overflowWrap: "break-word"}}>
-              <ReactMarkdown source={newfile} />
+              <ReactMarkdown source={newfile} escapeHtml={false} />
             </div>
             <NoteNavigation
               popout={props.popout}
