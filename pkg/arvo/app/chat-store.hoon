@@ -6,10 +6,12 @@
 +$  versioned-state
   $%  state-zero
       state-one
+      state-two
   ==
 ::
 +$  state-zero  [%0 =inbox]
 +$  state-one   [%1 =inbox]
++$  state-two   [%2 =inbox]
 ::
 +$  diff
   $%  [%chat-initial inbox]
@@ -18,7 +20,7 @@
   ==
 --
 ::
-=|  state-one
+=|  state-two
 =*  state  -
 ::
 %-  agent:dbug
@@ -36,10 +38,14 @@
   ++  on-load
     |=  old-vase=vase
     =/  old  !<(versioned-state old-vase)
-    ?:  ?=(%1 -.old)
+    ?:  ?=(%2 -.old)
       [~ this(state old)]
-    :_  this(state [%1 inbox.old])
-    [%pass /lo-chst %agent [our.bowl %chat-hook] %poke %noun !>(%store-load)]~
+    =/  reversed-inbox=^inbox
+      %-  ~(run by inbox.old)
+      |=  =mailbox
+      ^-  ^mailbox
+      [config.mailbox (flop envelopes.mailbox)]
+    [~ this(state [%2 reversed-inbox])]
   ::
   ++  on-poke
     |=  [=mark =vase]
@@ -182,6 +188,7 @@
   :-  (send-diff path.act act)
   state(inbox (~(del by inbox) path.act))
 ::
+
 ++  handle-message
   |=  act=chat-action
   ^-  (quip card _state)
@@ -190,7 +197,7 @@
   ?~  mailbox
     [~ state]
   =.  letter.envelope.act  (evaluate-letter [author letter]:envelope.act)
-  =^  envelope  u.mailbox  (append-envelope u.mailbox envelope.act)
+  =^  envelope  u.mailbox  (prepend-envelope u.mailbox envelope.act)
   :-  (send-diff path.act act(envelope envelope))
   state(inbox (~(put by inbox) path.act u.mailbox))
 ::
@@ -206,15 +213,10 @@
   ?~  envelopes.act
     :_  state(inbox (~(put by inbox) path.act u.mailbox))
     %+  send-diff  path.act
-    :*  %messages
-        path.act
-        (sub length.config.u.mailbox (lent evaluated-envelopes))
-        length.config.u.mailbox
-        evaluated-envelopes
-    ==
+    [%messages path.act 0 (lent evaluated-envelopes) evaluated-envelopes]
   =.  letter.i.envelopes.act  (evaluate-letter [author letter]:i.envelopes.act)
-  =^  envelope  u.mailbox  (append-envelope u.mailbox i.envelopes.act)
-  =.  evaluated-envelopes  (snoc evaluated-envelopes envelope)
+  =^  envelope  u.mailbox  (prepend-envelope u.mailbox i.envelopes.act)
+  =.  evaluated-envelopes  [envelope evaluated-envelopes]
   $(envelopes.act t.envelopes.act)
 ::
 ++  handle-read
@@ -240,12 +242,12 @@
     letter(output (eval bol hoon))
   letter
 ::
-++  append-envelope
+++  prepend-envelope
   |=  [=mailbox =envelope]
   ^+  [envelope mailbox]
   =.  number.envelope  +(length.config.mailbox)
   =:  length.config.mailbox  +(length.config.mailbox)
-      envelopes.mailbox  (snoc envelopes.mailbox envelope)
+      envelopes.mailbox  [envelope envelopes.mailbox]
   ==
   [envelope mailbox]
 ::
