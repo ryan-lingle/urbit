@@ -23,6 +23,11 @@ export class Root extends Component {
     store.setStateHandler(this.setState.bind(this));
   }
 
+  componentDidMount() {
+    //preload spinner asset
+    new Image().src = "/~chat/img/Spinner.png";
+  }
+
   render() {
     const { props, state } = this;
 
@@ -41,8 +46,7 @@ export class Root extends Component {
         state.inbox[stat].config.length > state.inbox[stat].config.read;
     });
 
-    let invites = '/chat' in state.invites ?
-      state.invites['/chat'] : {};
+    let invites = !!state.invites ? state.invites : {'/chat': {}, '/contacts': {}};
 
     let contacts = !!state.contacts ? state.contacts : {};
     let associations = !!state.associations ? state.associations : {chat: {}, contacts: {}};
@@ -54,7 +58,7 @@ export class Root extends Component {
         associations={associations}
         selectedGroups={state.selectedGroups}
         contacts={contacts}
-        invites={invites}
+        invites={invites["/chat"] || {}}
         unreads={unreads}
         api={api}
         station={station}
@@ -97,7 +101,6 @@ export class Root extends Component {
                   associations={associations}
                   invites={invites}
                   sidebarHideOnMobile={true}
-                  spinner={state.spinner}
                   sidebar={renderChannelSidebar(props)}
                   sidebarShown={state.sidebarShown}
                 >
@@ -107,6 +110,7 @@ export class Root extends Component {
                     permissions={state.permissions || {}}
                     contacts={state.contacts || {}}
                     associations={associations.contacts}
+                    chatSynced={state.chatSynced || {}}
                     {...props}
                   />
                 </Skeleton>
@@ -128,7 +132,6 @@ export class Root extends Component {
                 <Skeleton
                   associations={associations}
                   invites={invites}
-                  spinner={state.spinner}
                   sidebarHideOnMobile={true}
                   sidebar={renderChannelSidebar(props)}
                   sidebarShown={state.sidebarShown}
@@ -174,7 +177,7 @@ export class Root extends Component {
               let association =
                 station in associations["chat"] ? associations.chat[station] : {};
 
-              let permission = 
+              let permission =
                 station in state.permissions ? state.permissions[station] : {
                   who: new Set([]),
                   kind: 'white'
@@ -186,7 +189,6 @@ export class Root extends Component {
                   associations={associations}
                   invites={invites}
                   sidebarHideOnMobile={true}
-                  spinner={state.spinner}
                   popout={popout}
                   sidebarShown={state.sidebarShown}
                   sidebar={renderChannelSidebar(props, station)}
@@ -237,7 +239,6 @@ export class Root extends Component {
                   associations={associations}
                   invites={invites}
                   sidebarHideOnMobile={true}
-                  spinner={state.spinner}
                   sidebarShown={state.sidebarShown}
                   popout={popout}
                   sidebar={renderChannelSidebar(props, station)}
@@ -283,7 +284,6 @@ export class Root extends Component {
                   associations={associations}
                   invites={invites}
                   sidebarHideOnMobile={true}
-                  spinner={state.spinner}
                   popout={popout}
                   sidebarShown={state.sidebarShown}
                   sidebar={renderChannelSidebar(props, station)}
