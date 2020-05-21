@@ -3,6 +3,7 @@
   $%  ::  %get-rates: get da rates
       ::
       [%get-rates currency-pair=@t]
+      [%create-invoice currency=@t price=@]
   ==
 +$  btc-ps-admin-action
   $%
@@ -14,5 +15,9 @@
 +$  btc-ps-update
   $%
       [%mnemonic mnemonic=@t]
+  ==
++$  btc-ps-hook-response
+  $%  [%error @t]
+      [%data token=tape]
   ==
 --

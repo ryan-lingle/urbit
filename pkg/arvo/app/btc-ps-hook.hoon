@@ -83,11 +83,14 @@
   ?-  -.act
       %set-store-id
     [~ state(store-id store-id.act)]
+  ::
       %pair-client
     [[(pair-client pairing-code.act)]~ state]
+  ::
       %get-mnemonic
     :_  state
     [%give %fact [/primary]~ %btc-ps-update !>([%mnemonic mnemonic])]~
+  ::
       %generate-private-key
     [~ state(entropy `byts`[64 eny.bol])]
   ==
@@ -97,33 +100,44 @@
   ^-  (quip card _state)
   ?-  -.act
       %get-rates
-    [[(get-rates currency-pair.act store-id 'Hn37sEESNBedGt5ZKrVKHKLyQvCztLAA7WRRfJcTZ3UB')]~ state]
+    [[(get-rates currency-pair.act store-id token)]~ state]
+      %create-invoice
+    [[(create-invoice currency.act price.act store-id token)]~ state]
   ==
 ::
 ++  http-response
   |=  [=wire response=client-response:iris]
-  ~&  response
   ^-  (quip card _state)
   ::  ignore all but %finished
   ?.  ?=(%finished -.response)
     [~ state]
   ?<  (gth 200 status-code.response-header.response)
   =/  data=mime-data:iris  (need full-file.response)
-  [~ state]
-::  =/  =json  (need (de-json:html q.data.data))
-::  ~&  json
-::  =/  =broadcast-result  (parse-broadcast-result json)
-::  ~&  broadcast-result+broadcast-result
-::  :_  state
-::  [%give %fact ~[wire] %broadcast-result !>(broadcast-result)]~
+  =/  =json  (need (de-json:html q.data.data))
+  ?+  wire  [~ state]
+      [%token @ ~]
+    =/  res=btc-ps-hook-response  (parse-response json)
+    ?-  -.res
+        %error
+      ~&  res
+      [~ state]
+    ::
+        %data
+      [~ state(token (crip token.res))]
+    ==
+  ==
 ::
-:: ++  parse-broadcast-result
-::   =,  dejs:format
-::   %-  ot:dejs:format
-::   :~  [%success bo]
-::       [%error (mu so)]
-::       [%result (mu (ot [%txid so]~))]
-::   ==
+++  parse-response
+  =,  dejs:format
+  %-  of:dejs:format
+  :~  [
+        %data
+        %-  ar:dejs:format
+        %-  ot:dejs:format
+        [%token so]~
+      ]
+      [%error so]
+  ==
 ::
 ::  +utilities
 ::
@@ -135,14 +149,32 @@
 ::
 ++  pair-client
   |=  pairing-code=@t
+  =/  rp=@
+    %-  hash160:bip32-core
+    public-key:bip32-core
+  =/  sin=@t
+    %-  crip
+    (en-base58check:bip32-core [2 0xf02] [20 rp])
   =/  =request:http
     %+  post-request  'tokens'
     %-  json-to-octs
     %-  pairs:enjs:format
-    :~  [%id s+identity:bip32]
-        [%'pairingCode' s+pairing-code]
+    :~  [%id s+sin]
+        [%pairingcode s+pairing-code]
     ==
   (http-request /token/(scot %da now.bol) request *outbound-config:iris)
+::
+++  create-invoice
+  |=  [currency=@t price=@ store-id=@t token=@t]
+  =/  =request:http
+    %+  signed-post-request  'invoices'
+    %-  json-to-octs
+    %-  pairs:enjs:format
+    :~  [%currency s+currency]
+        [%price (numb:enjs:format price)]
+        [%token s+token]
+    ==
+  (http-request /invoice/(scot %da now.bol) request *outbound-config:iris)
 ::
 ++  get-rates
   |=  [currency-pair=@t store-id=@t token=@t]
@@ -165,15 +197,14 @@
   ^-  (list [@t @t])
   =,  crypto
   =/  msg-sha=@uvI  (sha-256:sha (swp 3 msg))
-  ~&  `@ux`private-key:bip32-core
   =/  signed-msg
     (ecdsa-raw-sign:secp256k1:secp msg-sha private-key:bip32-core)
   =/  enc=[len=@ud dat=@ux]
     %-  en:der
     ^-  spec:asn1
     :-  %seq
-    :~  `spec:asn1`[%int `@u`(swp 3 r.signed-msg)]
-        `spec:asn1`[%int `@u`(swp 3 s.signed-msg)]
+    :~  `spec:asn1`[%int `@u`r.signed-msg]
+        `spec:asn1`[%int `@u`s.signed-msg]
     ==
 
   =/  pub=@t
@@ -189,75 +220,11 @@
     %-  crip
     %+  slag  2
     (scow %x dat.enc)
-  =.  dat
-    '3046022100ab3457e281a6609db6ea0c5a05ff17567d3c976e3dc9b48c732d27b8fdc6982a022100aa5f05a65161463beaf712ea1bf9c4a18291dff72bb26a2a263dac81e9ee0bc8'
+
   :~
-    ::  derive public key from private-key
     ['X-Identity' pub]
-    ::  sign msg with private-key
     ['X-Signature' dat]
   ==
-::
-:: ++  der-encode
-::   |=  [r=@ s=@]
-::   ^-  @
-::   |^
-::   =/  r-list=(list @)  (flop (rip 3 r))
-::   =/  s-list=(list @)  (flop (rip 3 s))
-::   ?>  ?=(^ r-list)
-::   ?>  ?=(^ s-list)
-::   =:  r-list
-::     ?:  (gte i.r-list 128)
-::       [0 r-list]
-::     r-list
-::   ::
-::       s-list
-::     ?:  (gte i.s-list 128)
-::       [0 s-list]
-::     s-list
-::   ::
-::   ==
-::
-::   =/  rr-list=(list @)  (rm-padding r-list)
-::   =/  ss-list=(list @)  (rm-padding s-list)
-::   =.  rr-list  (construct-length rr-list)
-::   0
-::   :: =/  back-half=(list @)  ~[2]
-::   :: =.  back-half  (snoc `(list @)`back-half (lent r-list))
-::   :: =.  back-half  (weld back-half r-list)
-::   :: =.  back-half  (snoc `(list @)`back-half 2)
-::   :: =.  back-half  (snoc `(list @)`back-half (lent s-list))
-::   :: =.  back-half  (weld back-half s-list)
-::   :: =/  res=(list @)  ~[48 (lent back-half)]
-::   :: =.  res  (weld res back-half)
-::
-::   :: (rep 3 )
-::   ++  rm-padding
-::     |=  lis=(list @)
-::     ^-  (list @)
-::     =/  length=@  (lent lis)
-::     ?>  (gte length 2)
-::     =/  i=@  1
-::     |-
-::     ?:  ?&  =((snag i lis) 0)
-::             (gte (snag +(i) lis) 128)
-::             (lth i length)
-::         ==
-::       $(i +(i))
-::     (slag (dec i) lis)
-::   ::
-::   ++  construct-length
-::     |=  lis=(list @)
-::     ^-  (list @)
-::     ~&  `@ux`(met 3 11.111.111)
-::     :: ~&  `@ux`(rsh 3 1 (xeb 700))
-::     =/  octs  +((rsh 3 1 (xeb 700)))
-::     ?:  (lth (lent lis) 128)
-::       (snoc lis (lent lis))
-::     =/  octs  (met 3 700)
-::     =.  lis  (snoc lis (con 700 128))
-::     [1]~
-::   --
 ::
 ++  signed-get-request
   |=  [endpoint=@t params=(list [@t @t])]
@@ -274,10 +241,9 @@
   =/  url
     (crip (weld (weld base-url (trip endpoint)) (trip qs)))
   =/  signed-hed  (weld hed (create-signed-headers url))
-  ~&  url
   [%'GET' url signed-hed *(unit octs)]
 ::
-++  post-request
+++  signed-post-request
   |=  [endpoint=@t body-octs=octs]
   ^-  request:http
   =/  hed=header-list:http
@@ -286,9 +252,27 @@
         ['X-Accept-Version' '2.0.0']
         ['User-Agent' 'urbit-btcpay']
     ==
-  =/  base-url  "http://127.0.0.1:3000/" :: base url need to be in state
+  =/  base-url  "http://127.0.0.1:23000/"
   =/  url  (crip (weld base-url (trip endpoint)))
-  ~&  body-octs
+  =/  payload
+    (crip (weld (trip url) (trip q.body-octs)))
+  =/  signed-hed  (weld hed (create-signed-headers payload))
+  ~&  signed-hed+signed-hed
+  [%'POST' url signed-hed [~ body-octs]]
+::
+
+++  post-request
+  |=  [endpoint=@t body-octs=octs]
+  ^-  request:http
+  ~&  body-octs+q.body-octs
+  =/  hed=header-list:http
+    :~  ['content-type' 'application/json']
+        ['accept' 'application/json']
+        ['X-Accept-Version' '2.0.0']
+        ['User-Agent' 'urbit-btcpay']
+    ==
+  =/  base-url  "http://127.0.0.1:23000/" :: base url need to be in state
+  =/  url  (crip (weld base-url (trip endpoint)))
   [%'POST' url hed [~ body-octs]]
 ::
 ++  stringify
