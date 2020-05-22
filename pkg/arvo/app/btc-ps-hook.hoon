@@ -10,6 +10,7 @@
 +$  state-zero  [%0 base-state]
 +$  base-state
   $:  entropy=byts
+      url=@t
       store-id=@t
       token=@t
   ==
@@ -84,6 +85,9 @@
       %set-store-id
     [~ state(store-id store-id.act)]
   ::
+      %set-url
+    [~ state(url url.act)]
+  ::
       %pair-client
     [[(pair-client pairing-code.act)]~ state]
   ::
@@ -113,7 +117,9 @@
     [~ state]
   ?<  (gth 200 status-code.response-header.response)
   =/  data=mime-data:iris  (need full-file.response)
+  ~&  data+data
   =/  =json  (need (de-json:html q.data.data))
+  ~&  json+json
   ?+  wire  [~ state]
       [%token @ ~]
     =/  res=btc-ps-hook-response  (parse-response json)
@@ -236,10 +242,11 @@
         ['X-Accept-Version' '2.0.0']
         ['connection' 'close']
     ==
-  =/  base-url  "http://127.0.0.1:23000/"
+  =/  base-url  "https://btcpay464279.lndyn.com/"
   =/  qs  (stringify params)
   =/  url
     (crip (weld (weld base-url (trip endpoint)) (trip qs)))
+  ~&  url+url
   =/  signed-hed  (weld hed (create-signed-headers url))
   [%'GET' url signed-hed *(unit octs)]
 ::
@@ -252,26 +259,24 @@
         ['X-Accept-Version' '2.0.0']
         ['User-Agent' 'urbit-btcpay']
     ==
-  =/  base-url  "http://127.0.0.1:23000/"
+  =/  base-url  "https://btcpay464279.lndyn.com/"
   =/  url  (crip (weld base-url (trip endpoint)))
   =/  payload
     (crip (weld (trip url) (trip q.body-octs)))
   =/  signed-hed  (weld hed (create-signed-headers payload))
-  ~&  signed-hed+signed-hed
   [%'POST' url signed-hed [~ body-octs]]
 ::
 
 ++  post-request
   |=  [endpoint=@t body-octs=octs]
   ^-  request:http
-  ~&  body-octs+q.body-octs
   =/  hed=header-list:http
     :~  ['content-type' 'application/json']
         ['accept' 'application/json']
         ['X-Accept-Version' '2.0.0']
         ['User-Agent' 'urbit-btcpay']
     ==
-  =/  base-url  "http://127.0.0.1:23000/" :: base url need to be in state
+  =/  base-url  "https://btcpay464279.lndyn.com/" :: base url need to be in state
   =/  url  (crip (weld base-url (trip endpoint)))
   [%'POST' url hed [~ body-octs]]
 ::

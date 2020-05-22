@@ -8,6 +8,7 @@
 +$  btc-ps-admin-action
   $%
       [%set-store-id store-id=@t]
+      [%set-url url=@t]
       [%pair-client pairing-code=@t]
       [%generate-private-key ~]
       [%get-mnemonic ~]
